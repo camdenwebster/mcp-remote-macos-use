@@ -174,31 +174,19 @@ class TestVNCClient:
         mock_vnc_instance.capture_screen.return_value = screen_data
         mock_vnc_instance.width = 50
         mock_vnc_instance.height = 30
-        
-        # Also mock PIL.Image behavior for scaling
-        with patch('src.vnc_client.Image') as mock_pil:
-            mock_img = MagicMock()
-            mock_pil.open.return_value = mock_img
-            mock_img.resize.return_value = mock_img
-            
-            # Mock BytesIO for getting the output
-            with patch('src.vnc_client.io.BytesIO') as mock_bytesio:
-                mock_output = MagicMock()
-                mock_bytesio.return_value = mock_output
-                mock_output.getvalue.return_value = b'scaled_image_data'
-                
-                # Act
-                success, data, error, dimensions = await capture_vnc_screen(
-                    host="test_host", 
-                    port=5900, 
-                    password="test_password"
-                )
-        
+
+        # Act
+        success, data, error, dimensions = await capture_vnc_screen(
+            host="test_host",
+            port=5900,
+            password="test_password"
+        )
+
         # Assert
         assert success is True
         assert data is not None
         assert error is None
-        assert dimensions == (1366, 768)  # Target size after scaling
+        assert dimensions == (50, 30)  # Original dimensions without scaling
         mock_vnc_client_class.assert_called_once_with(
             host="test_host", 
             port=5900, 

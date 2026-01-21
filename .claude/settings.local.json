@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(timeout 5 podman run:*)",
+      "Bash(podman build:*)"
+    ]
+  }
+}

@@ -146,8 +146,8 @@ async def main():
                     "properties": {
                         "x": {"type": "integer", "description": "X coordinate for mouse position (in source dimensions)"},
                         "y": {"type": "integer", "description": "Y coordinate for mouse position (in source dimensions)"},
-                        "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
-                        "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768},
+                        "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling. Use 0 for 1:1 mapping with actual VM resolution.", "default": 0},
+                        "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling. Use 0 for 1:1 mapping with actual VM resolution.", "default": 0},
                         "direction": {
                             "type": "string",
                             "description": "Scroll direction",
@@ -179,8 +179,8 @@ async def main():
                     "properties": {
                         "x": {"type": "integer", "description": "X coordinate for mouse position (in source dimensions)"},
                         "y": {"type": "integer", "description": "Y coordinate for mouse position (in source dimensions)"},
-                        "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
-                        "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768}
+                        "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling. Use 0 for 1:1 mapping with actual VM resolution.", "default": 0},
+                        "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling. Use 0 for 1:1 mapping with actual VM resolution.", "default": 0}
                     },
                     "required": ["x", "y"]
                 },
@@ -193,8 +193,8 @@ async def main():
                     "properties": {
                         "x": {"type": "integer", "description": "X coordinate for mouse position (in source dimensions)"},
                         "y": {"type": "integer", "description": "Y coordinate for mouse position (in source dimensions)"},
-                        "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
-                        "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768},
+                        "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling. Use 0 for 1:1 mapping with actual VM resolution.", "default": 0},
+                        "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling. Use 0 for 1:1 mapping with actual VM resolution.", "default": 0},
                         "button": {"type": "integer", "description": "Mouse button (1=left, 2=middle, 3=right)", "default": 1}
                     },
                     "required": ["x", "y"]
@@ -208,8 +208,8 @@ async def main():
                     "properties": {
                         "x": {"type": "integer", "description": "X coordinate for mouse position (in source dimensions)"},
                         "y": {"type": "integer", "description": "Y coordinate for mouse position (in source dimensions)"},
-                        "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
-                        "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768},
+                        "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling. Use 0 for 1:1 mapping with actual VM resolution.", "default": 0},
+                        "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling. Use 0 for 1:1 mapping with actual VM resolution.", "default": 0},
                         "button": {"type": "integer", "description": "Mouse button (1=left, 2=middle, 3=right)", "default": 1}
                     },
                     "required": ["x", "y"]
@@ -239,8 +239,8 @@ async def main():
                         "start_y": {"type": "integer", "description": "Starting Y coordinate (in source dimensions)"},
                         "end_x": {"type": "integer", "description": "Ending X coordinate (in source dimensions)"},
                         "end_y": {"type": "integer", "description": "Ending Y coordinate (in source dimensions)"},
-                        "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
-                        "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768},
+                        "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling. Use 0 for 1:1 mapping with actual VM resolution.", "default": 0},
+                        "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling. Use 0 for 1:1 mapping with actual VM resolution.", "default": 0},
                         "button": {"type": "integer", "description": "Mouse button (1=left, 2=middle, 3=right)", "default": 1},
                         "steps": {"type": "integer", "description": "Number of intermediate points for smooth dragging", "default": 10},
                         "delay_ms": {"type": "integer", "description": "Delay between steps in milliseconds", "default": 10}

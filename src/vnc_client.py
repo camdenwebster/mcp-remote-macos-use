@@ -18,21 +18,24 @@ logger.setLevel(logging.DEBUG)
 
 async def capture_vnc_screen(host: str, port: int, password: str, username: Optional[str] = None,
                              encryption: str = "prefer_on") -> Tuple[bool, Optional[bytes], Optional[str], Optional[Tuple[int, int]]]:
-    """Capture a screenshot from a remote MacOs machine.
+    """Capture a screenshot from a remote MacOS machine at its native resolution.
 
     Args:
-        host: remote MacOs machine hostname or IP address
-        port: remote MacOs machine port
-        password: remote MacOs machine password
-        username: remote MacOs machine username (optional)
-        encryption: Encryption preference (default: "prefer_on")
+        host: Remote MacOS machine hostname or IP address
+        port: Remote MacOS machine port
+        password: Remote MacOS machine password
+        username: Remote MacOS machine username (optional)
+        encryption: Encryption preference ("prefer_on", "always_on", "always_off")
 
     Returns:
         Tuple containing:
         - success: True if the operation was successful
-        - screen_data: PNG image data if successful, None otherwise
+        - screen_data: PNG image data at native resolution if successful, None otherwise
         - error_message: Error message if unsuccessful, None otherwise
-        - dimensions: Tuple of (width, height) if successful, None otherwise
+        - dimensions: Tuple of (width, height) of the captured image at native resolution
+
+    Note: Screenshot is returned at the VM's actual resolution (e.g., 1024x768, 1920x1080).
+          Use the returned dimensions for accurate coordinate mapping.
     """
     logger.debug(f"Connecting to remote MacOs machine at {host}:{port} with encryption: {encryption}")
 
@@ -55,35 +58,12 @@ async def capture_vnc_screen(host: str, port: int, password: str, username: Opti
         if not screen_data:
             return False, None, f"Failed to capture screenshot from remote MacOs machine at {host}:{port}", None
 
-        # Save original dimensions for reference
+        # Return original resolution without scaling
         original_dims = (vnc.width, vnc.height)
+        logger.info(f"Captured screenshot at original resolution: {original_dims[0]}x{original_dims[1]}")
 
-        # Scale the image to FWXGA resolution (1366x768)
-        target_width, target_height = 1366, 768
-
-        try:
-            # Convert bytes to PIL Image
-            image_data = io.BytesIO(screen_data)
-            img = Image.open(image_data)
-
-            # Resize the image to the target resolution
-            scaled_img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
-
-            # Convert back to bytes
-            output_buffer = io.BytesIO()
-            scaled_img.save(output_buffer, format='PNG')
-            output_buffer.seek(0)
-            scaled_screen_data = output_buffer.getvalue()
-
-            logger.info(f"Scaled image from {original_dims[0]}x{original_dims[1]} to {target_width}x{target_height}")
-
-            # Return success with scaled screen data and target dimensions
-            return True, scaled_screen_data, None, (target_width, target_height)
-
-        except Exception as e:
-            logger.warning(f"Failed to scale image: {str(e)}. Returning original image.")
-            # Return the original image if scaling fails
-            return True, screen_data, None, original_dims
+        # Return success with original screen data and dimensions
+        return True, screen_data, None, original_dims
 
     finally:
         # Close VNC connection
@@ -507,9 +487,16 @@ class VNCClient:
             logger.debug(f"Screen dimensions: {self.width}x{self.height}")
             logger.debug(f"Initial pixel format: {self.pixel_format}")
 
-            # Set preferred pixel format (32-bit true color)
-            logger.debug("Setting preferred pixel format")
-            self._set_pixel_format()
+            # Detailed pixel format logging for debugging
+            logger.debug(f"Server pixel format: BPP={self.pixel_format.bits_per_pixel}, "
+                        f"Depth={self.pixel_format.depth}, Big-endian={self.pixel_format.big_endian}")
+            logger.debug(f"RGB shifts: R={self.pixel_format.red_shift}, "
+                        f"G={self.pixel_format.green_shift}, B={self.pixel_format.blue_shift}")
+            logger.debug(f"RGB max values: R={self.pixel_format.red_max}, "
+                        f"G={self.pixel_format.green_max}, B={self.pixel_format.blue_max}")
+
+            # REMOVED: Don't override server's pixel format - use the server's native format
+            # self._set_pixel_format()  # This was causing blue tint due to byte order mismatch
 
             # Set encodings (prioritize the ones we can actually handle)
             logger.debug("Setting supported encodings")
@@ -592,11 +579,34 @@ class VNCClient:
         try:
             # Create a new image from the raw data
             if self.pixel_format.bits_per_pixel == 32:
-                # 32-bit color (RGBA)
-                raw_img = Image.frombytes('RGBA', (width, height), rect_data)
-                # Convert to RGB if needed
-                if raw_img.mode != 'RGB':
-                    raw_img = raw_img.convert('RGB')
+                # 32-bit color - manual channel extraction using server's pixel format
+                raw_img = Image.new('RGB', (width, height))
+                pixels = raw_img.load()
+
+                for i in range(height):
+                    for j in range(width):
+                        idx = (i * width + j) * 4  # 4 bytes per pixel
+
+                        # Read pixel value respecting endianness
+                        if self.pixel_format.big_endian:
+                            pixel = int.from_bytes(rect_data[idx:idx+4], byteorder='big')
+                        else:
+                            pixel = int.from_bytes(rect_data[idx:idx+4], byteorder='little')
+
+                        # Extract RGB channels using shift values from server's format
+                        r = (pixel >> self.pixel_format.red_shift) & self.pixel_format.red_max
+                        g = (pixel >> self.pixel_format.green_shift) & self.pixel_format.green_max
+                        b = (pixel >> self.pixel_format.blue_shift) & self.pixel_format.blue_max
+
+                        # Scale to 0-255 range if needed
+                        if self.pixel_format.red_max != 255:
+                            r = int(r * 255 / self.pixel_format.red_max)
+                        if self.pixel_format.green_max != 255:
+                            g = int(g * 255 / self.pixel_format.green_max)
+                        if self.pixel_format.blue_max != 255:
+                            b = int(b * 255 / self.pixel_format.blue_max)
+
+                        pixels[j, i] = (r, g, b)
             elif self.pixel_format.bits_per_pixel == 16:
                 # 16-bit color needs special handling
                 raw_img = Image.new('RGB', (width, height))

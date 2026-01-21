@@ -88,16 +88,12 @@ def handle_remote_macos_mouse_scroll(arguments: dict[str, Any]) -> list[types.Te
     # Get required parameters from arguments
     x = arguments.get("x")
     y = arguments.get("y")
-    source_width = int(arguments.get("source_width", 1366))
-    source_height = int(arguments.get("source_height", 768))
+    source_width = int(arguments.get("source_width", 0))
+    source_height = int(arguments.get("source_height", 0))
     direction = arguments.get("direction", "down")
 
     if x is None or y is None:
         raise ValueError("x and y coordinates are required")
-
-    # Ensure source dimensions are positive
-    if source_width <= 0 or source_height <= 0:
-        raise ValueError("Source dimensions must be positive values")
 
     # Initialize VNC client
     vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
@@ -113,9 +109,16 @@ def handle_remote_macos_mouse_scroll(arguments: dict[str, Any]) -> list[types.Te
         target_width = vnc.width
         target_height = vnc.height
 
-        # Scale coordinates
-        scaled_x = int((x / source_width) * target_width)
-        scaled_y = int((y / source_height) * target_height)
+        # Scale coordinates (0 = use actual resolution, no scaling)
+        if source_width == 0 or source_width == target_width:
+            scaled_x = x
+        else:
+            scaled_x = int((x / source_width) * target_width)
+
+        if source_height == 0 or source_height == target_height:
+            scaled_y = y
+        else:
+            scaled_y = int((y / source_height) * target_height)
 
         # Ensure coordinates are within the screen bounds
         scaled_x = max(0, min(scaled_x, target_width - 1))
@@ -136,8 +139,8 @@ def handle_remote_macos_mouse_scroll(arguments: dict[str, Any]) -> list[types.Te
 
         # Prepare the response with useful details
         scale_factors = {
-            "x": target_width / source_width,
-            "y": target_height / source_height
+            "x": 1.0 if source_width == 0 else target_width / source_width,
+            "y": 1.0 if source_height == 0 else target_height / source_height
         }
 
         return [types.TextContent(
@@ -165,16 +168,12 @@ def handle_remote_macos_mouse_click(arguments: dict[str, Any]) -> list[types.Tex
     # Get required parameters from arguments
     x = arguments.get("x")
     y = arguments.get("y")
-    source_width = int(arguments.get("source_width", 1366))
-    source_height = int(arguments.get("source_height", 768))
+    source_width = int(arguments.get("source_width", 0))
+    source_height = int(arguments.get("source_height", 0))
     button = int(arguments.get("button", 1))
 
     if x is None or y is None:
         raise ValueError("x and y coordinates are required")
-
-    # Ensure source dimensions are positive
-    if source_width <= 0 or source_height <= 0:
-        raise ValueError("Source dimensions must be positive values")
 
     # Initialize VNC client
     vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
@@ -190,9 +189,16 @@ def handle_remote_macos_mouse_click(arguments: dict[str, Any]) -> list[types.Tex
         target_width = vnc.width
         target_height = vnc.height
 
-        # Scale coordinates
-        scaled_x = int((x / source_width) * target_width)
-        scaled_y = int((y / source_height) * target_height)
+        # Scale coordinates (0 = use actual resolution, no scaling)
+        if source_width == 0 or source_width == target_width:
+            scaled_x = x
+        else:
+            scaled_x = int((x / source_width) * target_width)
+
+        if source_height == 0 or source_height == target_height:
+            scaled_y = y
+        else:
+            scaled_y = int((y / source_height) * target_height)
 
         # Ensure coordinates are within the screen bounds
         scaled_x = max(0, min(scaled_x, target_width - 1))
@@ -203,8 +209,8 @@ def handle_remote_macos_mouse_click(arguments: dict[str, Any]) -> list[types.Tex
 
         # Prepare the response with useful details
         scale_factors = {
-            "x": target_width / source_width,
-            "y": target_height / source_height
+            "x": 1.0 if source_width == 0 else target_width / source_width,
+            "y": 1.0 if source_height == 0 else target_height / source_height
         }
 
         return [types.TextContent(
@@ -364,16 +370,12 @@ def handle_remote_macos_mouse_double_click(arguments: dict[str, Any]) -> list[ty
     # Get required parameters from arguments
     x = arguments.get("x")
     y = arguments.get("y")
-    source_width = int(arguments.get("source_width", 1366))
-    source_height = int(arguments.get("source_height", 768))
+    source_width = int(arguments.get("source_width", 0))
+    source_height = int(arguments.get("source_height", 0))
     button = int(arguments.get("button", 1))
 
     if x is None or y is None:
         raise ValueError("x and y coordinates are required")
-
-    # Ensure source dimensions are positive
-    if source_width <= 0 or source_height <= 0:
-        raise ValueError("Source dimensions must be positive values")
 
     # Initialize VNC client
     vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
@@ -389,9 +391,16 @@ def handle_remote_macos_mouse_double_click(arguments: dict[str, Any]) -> list[ty
         target_width = vnc.width
         target_height = vnc.height
 
-        # Scale coordinates
-        scaled_x = int((x / source_width) * target_width)
-        scaled_y = int((y / source_height) * target_height)
+        # Scale coordinates (0 = use actual resolution, no scaling)
+        if source_width == 0 or source_width == target_width:
+            scaled_x = x
+        else:
+            scaled_x = int((x / source_width) * target_width)
+
+        if source_height == 0 or source_height == target_height:
+            scaled_y = y
+        else:
+            scaled_y = int((y / source_height) * target_height)
 
         # Ensure coordinates are within the screen bounds
         scaled_x = max(0, min(scaled_x, target_width - 1))
@@ -402,8 +411,8 @@ def handle_remote_macos_mouse_double_click(arguments: dict[str, Any]) -> list[ty
 
         # Prepare the response with useful details
         scale_factors = {
-            "x": target_width / source_width,
-            "y": target_height / source_height
+            "x": 1.0 if source_width == 0 else target_width / source_width,
+            "y": 1.0 if source_height == 0 else target_height / source_height
         }
 
         return [types.TextContent(
@@ -430,15 +439,11 @@ def handle_remote_macos_mouse_move(arguments: dict[str, Any]) -> list[types.Text
     # Get required parameters from arguments
     x = arguments.get("x")
     y = arguments.get("y")
-    source_width = int(arguments.get("source_width", 1366))
-    source_height = int(arguments.get("source_height", 768))
+    source_width = int(arguments.get("source_width", 0))
+    source_height = int(arguments.get("source_height", 0))
 
     if x is None or y is None:
         raise ValueError("x and y coordinates are required")
-
-    # Ensure source dimensions are positive
-    if source_width <= 0 or source_height <= 0:
-        raise ValueError("Source dimensions must be positive values")
 
     # Initialize VNC client
     vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
@@ -454,9 +459,16 @@ def handle_remote_macos_mouse_move(arguments: dict[str, Any]) -> list[types.Text
         target_width = vnc.width
         target_height = vnc.height
 
-        # Scale coordinates
-        scaled_x = int((x / source_width) * target_width)
-        scaled_y = int((y / source_height) * target_height)
+        # Scale coordinates (0 = use actual resolution, no scaling)
+        if source_width == 0 or source_width == target_width:
+            scaled_x = x
+        else:
+            scaled_x = int((x / source_width) * target_width)
+
+        if source_height == 0 or source_height == target_height:
+            scaled_y = y
+        else:
+            scaled_y = int((y / source_height) * target_height)
 
         # Ensure coordinates are within the screen bounds
         scaled_x = max(0, min(scaled_x, target_width - 1))
@@ -467,8 +479,8 @@ def handle_remote_macos_mouse_move(arguments: dict[str, Any]) -> list[types.Text
 
         # Prepare the response with useful details
         scale_factors = {
-            "x": target_width / source_width,
-            "y": target_height / source_height
+            "x": 1.0 if source_width == 0 else target_width / source_width,
+            "y": 1.0 if source_height == 0 else target_height / source_height
         }
 
         return [types.TextContent(
@@ -570,8 +582,8 @@ def handle_remote_macos_mouse_drag_n_drop(arguments: dict[str, Any]) -> list[typ
     start_y = arguments.get("start_y")
     end_x = arguments.get("end_x")
     end_y = arguments.get("end_y")
-    source_width = int(arguments.get("source_width", 1366))
-    source_height = int(arguments.get("source_height", 768))
+    source_width = int(arguments.get("source_width", 0))
+    source_height = int(arguments.get("source_height", 0))
     button = int(arguments.get("button", 1))
     steps = int(arguments.get("steps", 10))
     delay_ms = int(arguments.get("delay_ms", 10))
@@ -579,10 +591,6 @@ def handle_remote_macos_mouse_drag_n_drop(arguments: dict[str, Any]) -> list[typ
     # Validate required parameters
     if any(x is None for x in [start_x, start_y, end_x, end_y]):
         raise ValueError("start_x, start_y, end_x, and end_y coordinates are required")
-
-    # Ensure source dimensions are positive
-    if source_width <= 0 or source_height <= 0:
-        raise ValueError("Source dimensions must be positive values")
 
     # Initialize VNC client
     vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
@@ -598,11 +606,20 @@ def handle_remote_macos_mouse_drag_n_drop(arguments: dict[str, Any]) -> list[typ
         target_width = vnc.width
         target_height = vnc.height
 
-        # Scale coordinates
-        scaled_start_x = int((start_x / source_width) * target_width)
-        scaled_start_y = int((start_y / source_height) * target_height)
-        scaled_end_x = int((end_x / source_width) * target_width)
-        scaled_end_y = int((end_y / source_height) * target_height)
+        # Scale coordinates (0 = use actual resolution, no scaling)
+        if source_width == 0 or source_width == target_width:
+            scaled_start_x = start_x
+            scaled_end_x = end_x
+        else:
+            scaled_start_x = int((start_x / source_width) * target_width)
+            scaled_end_x = int((end_x / source_width) * target_width)
+
+        if source_height == 0 or source_height == target_height:
+            scaled_start_y = start_y
+            scaled_end_y = end_y
+        else:
+            scaled_start_y = int((start_y / source_height) * target_height)
+            scaled_end_y = int((end_y / source_height) * target_height)
 
         # Ensure coordinates are within the screen bounds
         scaled_start_x = max(0, min(scaled_start_x, target_width - 1))
@@ -637,8 +654,8 @@ def handle_remote_macos_mouse_drag_n_drop(arguments: dict[str, Any]) -> list[typ
 
         # Prepare the response with useful details
         scale_factors = {
-            "x": target_width / source_width,
-            "y": target_height / source_height
+            "x": 1.0 if source_width == 0 else target_width / source_width,
+            "y": 1.0 if source_height == 0 else target_height / source_height
         }
 
         return [types.TextContent(
