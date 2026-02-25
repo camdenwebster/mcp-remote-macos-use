@@ -1,0 +1,44 @@
+{
+  "mcpServers": {
+    "macos-tart-vm": {
+      "command": "/absolute/path/to/mcp-remote-macos-use/mcp-macos-use.sh",
+      "env": {
+        "TART_VM_NAME": "your-vm-name",
+        "MACOS_USERNAME": "admin",
+        "MACOS_PASSWORD": "admin",
+        "CONTAINER_RUNTIME": "podman",
+        "CONTAINER_IMAGE": "mcp-remote-macos-use:latest"
+      }
+    },
+    "macos-tart-vm-ssh": {
+      "command": "/absolute/path/to/mcp-remote-macos-use/mcp-macos-use.sh",
+      "env": {
+        "TART_VM_NAME": "your-vm-name",
+        "MACOS_USERNAME": "admin",
+        "MACOS_PASSWORD": "admin",
+        "MACOS_SSH_USER": "ssh_username",
+        "MACOS_SSH_PASSWORD": "ssh_password",
+        "CONTAINER_RUNTIME": "podman"
+      }
+    },
+    "macos-direct-ip": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "-e",
+        "MACOS_HOST=192.168.1.100",
+        "-e",
+        "MACOS_PORT=5900",
+        "-e",
+        "MACOS_USERNAME=testuser",
+        "-e",
+        "MACOS_PASSWORD=password",
+        "-e",
+        "VNC_ENCRYPTION=prefer_on",
+        "--rm",
+        "buryhuang/mcp-remote-macos-use:latest"
+      ]
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "mcp-remote-macos-use": {
+      "command": "/absolute/path/to/mcp-remote-macos-use/mcp-macos-use.sh",
+      "env": {
+        "TART_VM_NAME": "your-vm-name",
+        "MACOS_USERNAME": "admin",
+        "MACOS_PASSWORD": "admin",
+        "USE_SSH_TUNNEL": "true",
+        "CONTAINER_RUNTIME": "podman"
+      }
+    }
+  }
+}

@@ -5,6 +5,7 @@ import os
 import sys
 import subprocess
 import time
+import paramiko
 
 import mcp.types as types
 # Import vnc_client from the current directory
@@ -20,14 +21,17 @@ logger.setLevel(logging.DEBUG)
 
 # Load environment variables for VNC connection
 MACOS_HOST = os.environ.get('MACOS_HOST', '')
-MACOS_PORT = int(os.environ.get('MACOS_PORT', '5900'))
+MACOS_VNC_PORT = int(os.environ.get('MACOS_VNC_PORT', '5900'))
 MACOS_USERNAME = os.environ.get('MACOS_USERNAME', '')
 MACOS_PASSWORD = os.environ.get('MACOS_PASSWORD', '')
 VNC_ENCRYPTION = os.environ.get('VNC_ENCRYPTION', 'prefer_on')
+USE_SSH_TUNNEL = os.environ.get('USE_SSH_TUNNEL', '').lower() in ('true', '1', 'yes')
+MACOS_SSH_PORT = int(os.environ.get('MACOS_SSH_PORT', '22'))
+MACOS_SSH_KEY_PATH = os.environ.get('MACOS_SSH_KEY_PATH', '')
 
 # Log environment variable status (without exposing actual values)
 logger.info(f"MACOS_HOST from environment: {'Set' if MACOS_HOST else 'Not set'}")
-logger.info(f"MACOS_PORT from environment: {MACOS_PORT}")
+logger.info(f"MACOS_VNC_PORT from environment: {MACOS_VNC_PORT}")
 logger.info(f"MACOS_USERNAME from environment: {'Set' if MACOS_USERNAME else 'Not set'}")
 logger.info(f"MACOS_PASSWORD from environment: {'Set' if MACOS_PASSWORD else 'Not set (Required)'}")
 logger.info(f"VNC_ENCRYPTION from environment: {VNC_ENCRYPTION}")
@@ -44,14 +48,17 @@ async def handle_remote_macos_get_screen(arguments: dict[str, Any]) -> list[type
     """Connect to a remote MacOs machine and get a screenshot of the remote desktop."""
     # Use environment variables
     host = MACOS_HOST
-    port = MACOS_PORT
+    port = MACOS_VNC_PORT
     password = MACOS_PASSWORD
     username = MACOS_USERNAME
     encryption = VNC_ENCRYPTION
 
     # Capture screen using helper method
     success, screen_data, error_message, dimensions = await capture_vnc_screen(
-        host=host, port=port, password=password, username=username, encryption=encryption
+        host=host, port=port, password=password, username=username, encryption=encryption,
+        use_ssh_tunnel=USE_SSH_TUNNEL,
+        ssh_port=MACOS_SSH_PORT,
+        ssh_key_path=MACOS_SSH_KEY_PATH or None,
     )
 
     if not success:
@@ -80,7 +87,7 @@ def handle_remote_macos_mouse_scroll(arguments: dict[str, Any]) -> list[types.Te
     """Perform a mouse scroll action on a remote MacOs machine."""
     # Use environment variables
     host = MACOS_HOST
-    port = MACOS_PORT
+    port = MACOS_VNC_PORT
     password = MACOS_PASSWORD
     username = MACOS_USERNAME
     encryption = VNC_ENCRYPTION
@@ -96,7 +103,9 @@ def handle_remote_macos_mouse_scroll(arguments: dict[str, Any]) -> list[types.Te
         raise ValueError("x and y coordinates are required")
 
     # Initialize VNC client
-    vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
+    vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption,
+                    use_ssh_tunnel=USE_SSH_TUNNEL, ssh_port=MACOS_SSH_PORT,
+                    ssh_key_path=MACOS_SSH_KEY_PATH or None)
 
     # Connect to remote MacOs machine
     success, error_message = vnc.connect()
@@ -109,13 +118,15 @@ def handle_remote_macos_mouse_scroll(arguments: dict[str, Any]) -> list[types.Te
         target_width = vnc.width
         target_height = vnc.height
 
-        # Scale coordinates (0 = use actual resolution, no scaling)
-        if source_width == 0 or source_width == target_width:
+        # Scale coordinates
+        # If source dimensions are 0, coordinates are assumed to be in target resolution
+        # Otherwise, scale from source resolution to target resolution
+        if source_width == 0:
             scaled_x = x
         else:
             scaled_x = int((x / source_width) * target_width)
 
-        if source_height == 0 or source_height == target_height:
+        if source_height == 0:
             scaled_y = y
         else:
             scaled_y = int((y / source_height) * target_height)
@@ -160,7 +171,7 @@ def handle_remote_macos_mouse_click(arguments: dict[str, Any]) -> list[types.Tex
     """Perform a mouse click action on a remote MacOs machine."""
     # Use environment variables
     host = MACOS_HOST
-    port = MACOS_PORT
+    port = MACOS_VNC_PORT
     password = MACOS_PASSWORD
     username = MACOS_USERNAME
     encryption = VNC_ENCRYPTION
@@ -176,7 +187,9 @@ def handle_remote_macos_mouse_click(arguments: dict[str, Any]) -> list[types.Tex
         raise ValueError("x and y coordinates are required")
 
     # Initialize VNC client
-    vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
+    vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption,
+                    use_ssh_tunnel=USE_SSH_TUNNEL, ssh_port=MACOS_SSH_PORT,
+                    ssh_key_path=MACOS_SSH_KEY_PATH or None)
 
     # Connect to remote MacOs machine
     success, error_message = vnc.connect()
@@ -189,13 +202,15 @@ def handle_remote_macos_mouse_click(arguments: dict[str, Any]) -> list[types.Tex
         target_width = vnc.width
         target_height = vnc.height
 
-        # Scale coordinates (0 = use actual resolution, no scaling)
-        if source_width == 0 or source_width == target_width:
+        # Scale coordinates
+        # If source dimensions are 0, coordinates are assumed to be in target resolution
+        # Otherwise, scale from source resolution to target resolution
+        if source_width == 0:
             scaled_x = x
         else:
             scaled_x = int((x / source_width) * target_width)
 
-        if source_height == 0 or source_height == target_height:
+        if source_height == 0:
             scaled_y = y
         else:
             scaled_y = int((y / source_height) * target_height)
@@ -229,7 +244,7 @@ def handle_remote_macos_send_keys(arguments: dict[str, Any]) -> list[types.TextC
     """Send keyboard input to a remote MacOs machine."""
     # Use environment variables
     host = MACOS_HOST
-    port = MACOS_PORT
+    port = MACOS_VNC_PORT
     password = MACOS_PASSWORD
     username = MACOS_USERNAME
     encryption = VNC_ENCRYPTION
@@ -243,7 +258,9 @@ def handle_remote_macos_send_keys(arguments: dict[str, Any]) -> list[types.TextC
         raise ValueError("Either text, special_key, or key_combination must be provided")
 
     # Initialize VNC client
-    vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
+    vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption,
+                    use_ssh_tunnel=USE_SSH_TUNNEL, ssh_port=MACOS_SSH_PORT,
+                    ssh_key_path=MACOS_SSH_KEY_PATH or None)
 
     # Connect to remote MacOs machine
     success, error_message = vnc.connect()
@@ -362,7 +379,7 @@ def handle_remote_macos_mouse_double_click(arguments: dict[str, Any]) -> list[ty
     """Perform a mouse double-click action on a remote MacOs machine."""
     # Use environment variables
     host = MACOS_HOST
-    port = MACOS_PORT
+    port = MACOS_VNC_PORT
     password = MACOS_PASSWORD
     username = MACOS_USERNAME
     encryption = VNC_ENCRYPTION
@@ -378,7 +395,9 @@ def handle_remote_macos_mouse_double_click(arguments: dict[str, Any]) -> list[ty
         raise ValueError("x and y coordinates are required")
 
     # Initialize VNC client
-    vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
+    vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption,
+                    use_ssh_tunnel=USE_SSH_TUNNEL, ssh_port=MACOS_SSH_PORT,
+                    ssh_key_path=MACOS_SSH_KEY_PATH or None)
 
     # Connect to remote MacOs machine
     success, error_message = vnc.connect()
@@ -391,13 +410,15 @@ def handle_remote_macos_mouse_double_click(arguments: dict[str, Any]) -> list[ty
         target_width = vnc.width
         target_height = vnc.height
 
-        # Scale coordinates (0 = use actual resolution, no scaling)
-        if source_width == 0 or source_width == target_width:
+        # Scale coordinates
+        # If source dimensions are 0, coordinates are assumed to be in target resolution
+        # Otherwise, scale from source resolution to target resolution
+        if source_width == 0:
             scaled_x = x
         else:
             scaled_x = int((x / source_width) * target_width)
 
-        if source_height == 0 or source_height == target_height:
+        if source_height == 0:
             scaled_y = y
         else:
             scaled_y = int((y / source_height) * target_height)
@@ -431,7 +452,7 @@ def handle_remote_macos_mouse_move(arguments: dict[str, Any]) -> list[types.Text
     """Move the mouse cursor on a remote MacOs machine."""
     # Use environment variables
     host = MACOS_HOST
-    port = MACOS_PORT
+    port = MACOS_VNC_PORT
     password = MACOS_PASSWORD
     username = MACOS_USERNAME
     encryption = VNC_ENCRYPTION
@@ -446,7 +467,9 @@ def handle_remote_macos_mouse_move(arguments: dict[str, Any]) -> list[types.Text
         raise ValueError("x and y coordinates are required")
 
     # Initialize VNC client
-    vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
+    vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption,
+                    use_ssh_tunnel=USE_SSH_TUNNEL, ssh_port=MACOS_SSH_PORT,
+                    ssh_key_path=MACOS_SSH_KEY_PATH or None)
 
     # Connect to remote MacOs machine
     success, error_message = vnc.connect()
@@ -459,13 +482,15 @@ def handle_remote_macos_mouse_move(arguments: dict[str, Any]) -> list[types.Text
         target_width = vnc.width
         target_height = vnc.height
 
-        # Scale coordinates (0 = use actual resolution, no scaling)
-        if source_width == 0 or source_width == target_width:
+        # Scale coordinates
+        # If source dimensions are 0, coordinates are assumed to be in target resolution
+        # Otherwise, scale from source resolution to target resolution
+        if source_width == 0:
             scaled_x = x
         else:
             scaled_x = int((x / source_width) * target_width)
 
-        if source_height == 0 or source_height == target_height:
+        if source_height == 0:
             scaled_y = y
         else:
             scaled_y = int((y / source_height) * target_height)
@@ -508,7 +533,7 @@ def handle_remote_macos_open_application(arguments: dict[str, Any]) -> List[type
     """
     # Use environment variables
     host = MACOS_HOST
-    port = MACOS_PORT
+    port = MACOS_VNC_PORT
     password = MACOS_PASSWORD
     username = MACOS_USERNAME
     encryption = VNC_ENCRYPTION
@@ -520,7 +545,9 @@ def handle_remote_macos_open_application(arguments: dict[str, Any]) -> List[type
     start_time = time.time()
 
     # Initialize VNC client
-    vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
+    vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption,
+                    use_ssh_tunnel=USE_SSH_TUNNEL, ssh_port=MACOS_SSH_PORT,
+                    ssh_key_path=MACOS_SSH_KEY_PATH or None)
 
     # Connect to remote MacOs machine
     success, error_message = vnc.connect()
@@ -572,7 +599,7 @@ def handle_remote_macos_mouse_drag_n_drop(arguments: dict[str, Any]) -> list[typ
     """Perform a mouse drag operation on a remote MacOs machine."""
     # Use environment variables
     host = MACOS_HOST
-    port = MACOS_PORT
+    port = MACOS_VNC_PORT
     password = MACOS_PASSWORD
     username = MACOS_USERNAME
     encryption = VNC_ENCRYPTION
@@ -593,7 +620,9 @@ def handle_remote_macos_mouse_drag_n_drop(arguments: dict[str, Any]) -> list[typ
         raise ValueError("start_x, start_y, end_x, and end_y coordinates are required")
 
     # Initialize VNC client
-    vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
+    vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption,
+                    use_ssh_tunnel=USE_SSH_TUNNEL, ssh_port=MACOS_SSH_PORT,
+                    ssh_key_path=MACOS_SSH_KEY_PATH or None)
 
     # Connect to remote MacOs machine
     success, error_message = vnc.connect()
@@ -673,3 +702,114 @@ Delay: {delay_ms}ms"""
     finally:
         # Close VNC connection
         vnc.close()
+
+
+async def handle_remote_macos_send_ssh_command(arguments: dict[str, Any]) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
+    """Execute a shell command on the remote macOS machine via SSH."""
+    command = arguments.get("command")
+    if not command:
+        raise ValueError("command is required")
+
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    try:
+        connect_kwargs: dict[str, Any] = dict(
+            hostname=MACOS_HOST,
+            port=MACOS_SSH_PORT,
+            username=MACOS_USERNAME,
+            password=MACOS_PASSWORD,
+        )
+        if MACOS_SSH_KEY_PATH:
+            connect_kwargs["key_filename"] = MACOS_SSH_KEY_PATH
+        client.connect(**connect_kwargs)
+
+        is_sudo = "sudo" in command.split()
+        exec_command = f"sudo -S {command.lstrip('sudo').lstrip()}" if is_sudo else command
+        stdin, stdout, stderr = client.exec_command(exec_command, get_pty=False)
+
+        if is_sudo:
+            stdin.write(MACOS_PASSWORD + "\n")
+            stdin.flush()
+
+        exit_code = stdout.channel.recv_exit_status()
+        out = stdout.read().decode("utf-8", errors="replace")
+        err = stderr.read().decode("utf-8", errors="replace")
+
+        lines = [f"Exit code: {exit_code}"]
+        if out:
+            lines.append(f"stdout:\n{out}")
+        if err:
+            lines.append(f"stderr:\n{err}")
+        return [types.TextContent(type="text", text="\n".join(lines))]
+    except Exception as exc:
+        return [types.TextContent(type="text", text=f"SSH error: {exc}")]
+    finally:
+        client.close()
+
+
+async def handle_remote_macos_send_file_scp(arguments: dict[str, Any]) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
+    """Copy a local file to the /tmp directory on the remote macOS machine via SCP."""
+    local_path = arguments.get("local_path")
+    if not local_path:
+        raise ValueError("local_path is required")
+
+    remote_filename = os.path.basename(local_path)
+    remote_path = f"/tmp/{remote_filename}"
+
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    try:
+        connect_kwargs: dict[str, Any] = dict(
+            hostname=MACOS_HOST,
+            port=MACOS_SSH_PORT,
+            username=MACOS_USERNAME,
+            password=MACOS_PASSWORD,
+        )
+        if MACOS_SSH_KEY_PATH:
+            connect_kwargs["key_filename"] = MACOS_SSH_KEY_PATH
+        client.connect(**connect_kwargs)
+
+        sftp = client.open_sftp()
+        try:
+            sftp.put(local_path, remote_path)
+        finally:
+            sftp.close()
+
+        return [types.TextContent(
+            type="text",
+            text=f"File uploaded: {local_path} -> {MACOS_HOST}:{remote_path}",
+        )]
+    except Exception as exc:
+        return [types.TextContent(type="text", text=f"SCP error: {exc}")]
+    finally:
+        client.close()
+
+
+async def handle_remote_macos_save_screenshot(arguments: dict[str, Any]) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
+    """Capture the remote desktop and save the PNG to a local file path."""
+    file_path = arguments.get("file_path")
+    if not file_path:
+        raise ValueError("file_path is required")
+
+    success, screen_data, error_message, dimensions = await capture_vnc_screen(
+        host=MACOS_HOST,
+        port=MACOS_VNC_PORT,
+        password=MACOS_PASSWORD,
+        username=MACOS_USERNAME,
+        encryption=VNC_ENCRYPTION,
+        use_ssh_tunnel=USE_SSH_TUNNEL,
+        ssh_port=MACOS_SSH_PORT,
+        ssh_key_path=MACOS_SSH_KEY_PATH or None,
+    )
+
+    if not success:
+        return [types.TextContent(type="text", text=error_message)]
+
+    with open(file_path, "wb") as f:
+        f.write(screen_data)
+
+    width, height = dimensions
+    return [types.TextContent(
+        type="text",
+        text=f"Screenshot saved to {file_path} ({width}x{height})",
+    )]

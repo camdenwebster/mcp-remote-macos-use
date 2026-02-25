@@ -34,7 +34,10 @@ from action_handlers import (
     handle_remote_macos_mouse_click,
     handle_remote_macos_mouse_double_click,
     handle_remote_macos_open_application,
-    handle_remote_macos_mouse_drag_n_drop
+    handle_remote_macos_mouse_drag_n_drop,
+    handle_remote_macos_send_ssh_command,
+    handle_remote_macos_send_file_scp,
+    handle_remote_macos_save_screenshot,
 )
 
 # Configure logging
@@ -47,14 +50,14 @@ logger.setLevel(logging.DEBUG)
 
 # Load environment variables for VNC connection
 MACOS_HOST = os.environ.get('MACOS_HOST', '')
-MACOS_PORT = int(os.environ.get('MACOS_PORT', '5900'))
+MACOS_VNC_PORT = int(os.environ.get('MACOS_VNC_PORT', '5900'))
 MACOS_USERNAME = os.environ.get('MACOS_USERNAME', '')
 MACOS_PASSWORD = os.environ.get('MACOS_PASSWORD', '')
 VNC_ENCRYPTION = os.environ.get('VNC_ENCRYPTION', 'prefer_on')
 
 # Log environment variable status (without exposing actual values)
 logger.info(f"MACOS_HOST from environment: {'Set' if MACOS_HOST else 'Not set'}")
-logger.info(f"MACOS_PORT from environment: {MACOS_PORT}")
+logger.info(f"MACOS_VNC_PORT from environment: {MACOS_VNC_PORT}")
 logger.info(f"MACOS_USERNAME from environment: {'Set' if MACOS_USERNAME else 'Not set'}")
 logger.info(f"MACOS_PASSWORD from environment: {'Set' if MACOS_PASSWORD else 'Not set (Required)'}")
 logger.info(f"VNC_ENCRYPTION from environment: {VNC_ENCRYPTION}")
@@ -214,6 +217,39 @@ async def main():
                     "required": ["start_x", "start_y", "end_x", "end_y"]
                 },
             ),
+            types.Tool(
+                name="remote_macos_send_ssh_command",
+                description="Execute a shell command on the remote macOS machine via SSH. If the command contains sudo, the password is injected automatically via stdin.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "command": {"type": "string", "description": "Shell command to execute on the remote machine"}
+                    },
+                    "required": ["command"]
+                },
+            ),
+            types.Tool(
+                name="remote_macos_send_file_scp",
+                description="Copy a local file to the /tmp directory on the remote macOS machine via SCP.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "local_path": {"type": "string", "description": "Absolute path to the local file to upload"}
+                    },
+                    "required": ["local_path"]
+                },
+            ),
+            types.Tool(
+                name="remote_macos_save_screenshot",
+                description="Capture a screenshot of the remote macOS desktop and save it as a PNG to a local file path. Use paths under /mcp-output/ (e.g. /mcp-output/screenshot-1.png) — this directory is mounted to the host and is suitable for logging and diagnostic reports.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "file_path": {"type": "string", "description": "File path where the PNG will be saved. Use /mcp-output/<filename>.png to persist to the host machine."}
+                    },
+                    "required": ["file_path"]
+                },
+            ),
         ]
 
     @server.call_tool()
@@ -248,6 +284,15 @@ async def main():
 
             elif name == "remote_macos_mouse_drag_n_drop":
                 return handle_remote_macos_mouse_drag_n_drop(arguments)
+
+            elif name == "remote_macos_send_ssh_command":
+                return await handle_remote_macos_send_ssh_command(arguments)
+
+            elif name == "remote_macos_send_file_scp":
+                return await handle_remote_macos_send_file_scp(arguments)
+
+            elif name == "remote_macos_save_screenshot":
+                return await handle_remote_macos_save_screenshot(arguments)
 
             else:
                 raise ValueError(f"Unknown tool: {name}")

@@ -44,7 +44,7 @@ if not os.environ.get('CI') and os.environ.get('GITHUB_ACTIONS'):
 
 # Set environment variables for testing
 os.environ['MACOS_HOST'] = 'test-host'
-os.environ['MACOS_PORT'] = '5900'
+os.environ['MACOS_VNC_PORT'] = '5900'
 os.environ['MACOS_USERNAME'] = 'test-user'
 os.environ['MACOS_PASSWORD'] = 'test-password'
 os.environ['VNC_ENCRYPTION'] = 'prefer_on'
@@ -54,7 +54,7 @@ def mock_global_env_vars():
     """Mock environment variables for testing."""
     with patch.dict(os.environ, {
         'MACOS_HOST': 'test-host',
-        'MACOS_PORT': '5900',
+        'MACOS_VNC_PORT': '5900',
         'MACOS_USERNAME': 'test-user',
         'MACOS_PASSWORD': 'test-password',
         'VNC_ENCRYPTION': 'prefer_on'

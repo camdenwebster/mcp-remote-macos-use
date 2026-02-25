@@ -34,7 +34,7 @@ pytest
 The tests use mock environment variables for testing. In a real environment, you'll need to set these variables:
 
 - `MACOS_HOST`: Hostname or IP address of the macOS machine
-- `MACOS_PORT`: Port for VNC connection (default: 5900)
+- `MACOS_VNC_PORT`: Port for VNC connection (default: 5900)
 - `MACOS_USERNAME`: Username for macOS authentication (optional)
 - `MACOS_PASSWORD`: Password for macOS authentication (required)
 - `VNC_ENCRYPTION`: Encryption preference (default: "prefer_on") 

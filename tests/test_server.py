@@ -15,7 +15,7 @@ def mock_env_vars():
     """Set up environment variables for testing."""
     with patch.dict('os.environ', {
         'MACOS_HOST': 'test-host',
-        'MACOS_PORT': '5900',
+        'MACOS_VNC_PORT': '5900',
         'MACOS_USERNAME': 'test-user',
         'MACOS_PASSWORD': 'test-password',
         'VNC_ENCRYPTION': 'prefer_on'
@@ -306,7 +306,7 @@ def test_environment_variables_validation(mock_env_vars):
     
     # Assert that environment variables were loaded
     assert server_module.MACOS_HOST == 'test-host'
-    assert server_module.MACOS_PORT == 5900
+    assert server_module.MACOS_VNC_PORT == 5900
     assert server_module.MACOS_USERNAME == 'test-user'
     assert server_module.MACOS_PASSWORD == 'test-password'
     assert server_module.VNC_ENCRYPTION == 'prefer_on'

@@ -188,11 +188,14 @@ class TestVNCClient:
         assert error is None
         assert dimensions == (50, 30)  # Original dimensions without scaling
         mock_vnc_client_class.assert_called_once_with(
-            host="test_host", 
-            port=5900, 
-            password="test_password", 
-            username=None, 
-            encryption="prefer_on"
+            host="test_host",
+            port=5900,
+            password="test_password",
+            username=None,
+            encryption="prefer_on",
+            use_ssh_tunnel=False,
+            ssh_port=22,
+            ssh_key_path=None,
         )
         mock_vnc_instance.connect.assert_called_once()
         mock_vnc_instance.capture_screen.assert_called_once()

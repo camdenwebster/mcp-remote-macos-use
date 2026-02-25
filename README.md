@@ -1,91 +1,106 @@
-# MCP Server - Remote MacOs Use
+# MCP Remote macOS Use - Jamf Testing Fork
 
-**The first open-source MCP server that enables AI to fully control remote macOS systems.**
+**AI-powered E2E and exploratory testing for Mac applications on macOS VMs.**
 
-**A direct alternative to OpenAI Operator, optimized specifically for autonomous AI agents with complete desktop capabilities, requiring no additional software installation.**
+MCP server enabling Claude to control remote macOS systems via VNC for automated testing. Uses vision-based interaction to test applications exactly as users experience them.
 
-[![Docker Pulls](https://img.shields.io/docker/pulls/buryhuang/mcp-remote-macos-use)](https://hub.docker.com/r/buryhuang/mcp-remote-macos-use)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+## Use Cases
 
-**Showcases**
-
-- Research Twitter and Post Twitter(<https://www.youtube.com/watch?v=--QHz2jcvcs>)
-<img width="400" alt="image" src="https://github.com/user-attachments/assets/bfe6e354-3d59-4d08-855b-2eecdaaeb46f" />
-
-- Use CapCut to create short highlight video(<https://www.youtube.com/watch?v=RKAqiNoU8ec>)
-<img width="400" alt="image" src="https://github.com/user-attachments/assets/3b4d07c5-cd25-4dae-b9a1-a373bf7492aa" />
-
-- AI Recruiter: Automated candidate information collection, qualifying applications and sending screening sessions using Mail App
-- AI Marketing Intern: LinkedIn engagement - automated following, liking, and commenting with relevant users
-- AI Marketing Intern: Twitter engagement - automated following, liking, and commenting with relevant users
-
-## To-Do List (Prioritized)
-
-1. **Performance Optimization** - Match speed of Ubuntu desktop alternatives
-2. **Apple Scripts Generation** - Reduce execution time while maintaining flexibility
-3. **VNC Cursor Visibility** - Improve debugging and demo experience
-
-*We welcome contributions!*
+* **E2E Testing**: Automate complete user workflows across Jamf applications
+* **Exploratory Testing**: AI-driven investigation of app behavior and edge cases
+* **Regression Testing**: Validate functionality across macOS versions
+* **Visual Validation**: Screenshot-based UI verification
+* **Cross-Version Testing**: Test against multiple macOS releases simultaneously
 
 ## Features
 
-- **No Extra API Costs**: Free screen processing with your existing Claude Pro plan
-- **Minimal Setup**: Just enable Screen Sharing on the target Mac – no additional software needed
-- **Universal Compatibility**: Works with all macOS versions, current and future
-  
-## Why We Built This
+* **No Installation**: Uses native macOS Screen Sharing (VNC)
+* **Vision-Based**: AI interprets screenshots to understand app state
+* **Natural Language**: Describe test scenarios in plain English
+* **SSH Tunneling**: Secure encrypted VNC connections
+* **Version Agnostic**: Works with all macOS versions
 
-### Native macOS Experience Without Compromise
+## Setup
 
-The macOS native ecosystem remains unmatched in user experience today and will continue to be the gold standard for years to come. This is where human capabilities truly thrive, and now your AI can operate in this environment with the same fluency.
+**Prerequisites:**
 
-### Open Architecture By Design
+* macOS VM with Screen Sharing enabled
+* [Homebrew](https://brew.sh) installed
+* Claude Code/Desktop
+* (Optional) [Tart](https://tart.run/) for local macOS VMs
 
-- **Universal LLM Compatibility**: Work with any MCP Client of your choice
+The script automatically handles Podman installation, configuration, and image building on first run.
 
-- **Model Flexibility**: Seamlessly integrate with OpenAI, Anthropic, or any other LLM provider
-- **Future-Proof Integration**: Designed to evolve with the MCP ecosystem
+**Enable Screen Sharing on VMs:**
+System Settings → General → Sharing → Enable "Screen Sharing" (default port: 5900)
 
-### Effortless Deployment
+**Configure Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
 
-- **Zero Setup on Target Machines**: No background applications or agents needed on macOS
+See [`example-config.json`](example-config.json) for complete configuration examples.
 
-- **Screen Sharing is All You Need**: Control any Mac with Screen Sharing enabled
-- **Eliminate Backend Complexity**: Unlike other solutions that require running Python applications or background services
+### Tart VM Integration (Recommended)
 
-### Streamlined Bootstrap Process
-
-- **Leverage Claude Desktop's Polished UI**: No need for developer-style Python interfaces
-
-- **Intuitive User Experience**: Interact with your AI-controlled Mac through a familiar, user-friendly interface
-- **Instant Productivity**: Start working immediately without configuration hassles
-
-## Architecture
-
-<img width="912" alt="remote_macos_use_system_architecture" src="https://github.com/user-attachments/assets/75ece060-90e2-4ad3-bb52-2c69427001dd" />
-
-## Installation
-
-- [Enable Screen Sharing on MacOs](https://support.apple.com/guide/remote-desktop/set-up-a-computer-running-vnc-software-apdbed09830/mac) **If you rent a mac from macstadium.com, you can skip this step**
-- [Connect to your remote MacOs](https://support.apple.com/guide/mac-help/share-the-screen-of-another-mac-mh14066/mac)
-- [Install Docker Desktop for local Mac](https://docs.docker.com/desktop/setup/install/mac-install/)
-- [Add this MCP server to Claude Desktop](https://modelcontextprotocol.io/quickstart/user)
-You can configure Claude Desktop to use the Docker image by adding the following to your Claude configuration:
+For local [Tart VMs](https://tart.run/) (macOS virtualization), use the included script to automatically detect VM IP:
 
 ```json
 {
   "mcpServers": {
-    "remote-macos-use": {
+    "macos-tart-vm": {
+      "command": "/path/to/mcp-remote-macos-use/mcp-macos-use.sh",
+      "env": {
+        "TART_VM_NAME": "your-vm-name",
+        "MACOS_USERNAME": "admin",
+        "MACOS_PASSWORD": "admin",
+        "CONTAINER_RUNTIME": "podman"
+      }
+    }
+  }
+}
+```
+
+**First-Run Setup:**
+
+The script automatically handles:
+
+1. **Podman Installation**: Installs via Homebrew if not present
+2. **Machine Initialization**: Creates Podman machine with 4 CPUs, 4GB RAM
+3. **Machine Start**: Ensures Podman machine is running
+4. **Image Build**: Builds `mcp-remote-macos-use:latest` if not found
+
+**Script Environment Variables:**
+
+* `TART_VM_NAME`: Name of your Tart VM (default: `26-edit_1024x768`)
+* `MACOS_USERNAME`: VNC and SSH username (default: `admin`)
+* `MACOS_PASSWORD`: VNC and SSH password (default: `admin`)
+* `CONTAINER_RUNTIME`: `podman` or `docker` (default: `podman`)
+* `CONTAINER_IMAGE`: Container image name (default: `mcp-remote-macos-use:latest`)
+* `TART_TIMEOUT`: Seconds to wait for VM boot (default: `30`)
+* `USE_SSH_TUNNEL`: Enable SSH tunnel (`true` or `false`, default: `false`)
+* `MACOS_SSH_PORT`: SSH port (default: `22`)
+* `MACOS_SSH_KEY_PATH`: Path to SSH private key (optional, overrides password auth)
+
+### Direct VNC Configuration
+
+For VMs with known IP addresses:
+
+```json
+{
+  "mcpServers": {
+    "macos-test-vm": {
       "command": "docker",
       "args": [
         "run",
         "-i",
         "-e",
-        "MACOS_USERNAME=your_macos_username",
+        "MACOS_HOST=192.168.1.100",
         "-e",
-        "MACOS_PASSWORD=your_macos_password",
+        "MACOS_VNC_PORT=5900",
         "-e",
-        "MACOS_HOST=your_macos_hostname_or_ip",
+        "MACOS_USERNAME=testuser",
+        "-e",
+        "MACOS_PASSWORD=your_vnc_password",
+        "-e",
+        "VNC_ENCRYPTION=prefer_on",
         "--rm",
         "buryhuang/mcp-remote-macos-use:latest"
       ]
@@ -94,110 +109,152 @@ You can configure Claude Desktop to use the Docker image by adding the following
 }
 ```
 
-## Developer Instruction
+### SSH Tunnel Configuration (Recommended)
 
-### Clone the repo
+For enhanced security or when VMs are behind firewalls, route VNC traffic through an encrypted SSH tunnel. Uses the same credentials as VNC:
 
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/mcp-remote-macos-use.git
-cd mcp-remote-macos-use
+```json
+{
+  "mcpServers": {
+    "macos-test-vm-ssh": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "-e",
+        "MACOS_HOST=vm-host.jamf.example.com",
+        "-e",
+        "MACOS_USERNAME=testuser",
+        "-e",
+        "MACOS_PASSWORD=shared_password",
+        "-e",
+        "USE_SSH_TUNNEL=true",
+        "-e",
+        "MACOS_SSH_PORT=22",
+        "-v",
+        "/Users/you/.ssh/id_rsa:/root/.ssh/id_rsa:ro",
+        "-e",
+        "MACOS_SSH_KEY_PATH=/root/.ssh/id_rsa",
+        "--rm",
+        "buryhuang/mcp-remote-macos-use:latest"
+      ]
+    }
+  }
+}
 ```
 
-### Building the Docker Image
+**Note**: SSH uses `MACOS_USERNAME` and `MACOS_PASSWORD` for authentication. For SSH key auth, mount your key and set `MACOS_SSH_KEY_PATH=/root/.ssh/id_rsa` (overrides password auth).
 
-```bash
-# Build the Docker image
-docker build -t mcp-remote-macos-use .
-```
+### Configuration Parameters
 
-## Cross-Platform Publishing
+**Required:** `MACOS_HOST`, `MACOS_USERNAME`, `MACOS_PASSWORD`
 
-To publish the Docker image for multiple platforms, you can use the `docker buildx` command. Follow these steps:
+**Optional:** `MACOS_VNC_PORT` (default: 5900), `VNC_ENCRYPTION` (default: `prefer_on`)
 
-1. **Create a new builder instance** (if you haven't already):
+**SSH Tunnel (Recommended):** When `USE_SSH_TUNNEL=true`, VNC traffic routes through an encrypted SSH tunnel using the same credentials.
 
-   ```bash
-   docker buildx create --use
-   ```
-
-2. **Build and push the image for multiple platforms**:
-
-   ```bash
-   docker buildx build --platform linux/amd64,linux/arm64 -t buryhuang/mcp-remote-macos-use:latest --push .
-   ```
-
-3. **Verify the image is available for the specified platforms**:
-
-   ```bash
-   docker buildx imagetools inspect buryhuang/mcp-remote-macos-use:latest
-   ```
+* `USE_SSH_TUNNEL`: Enable SSH tunnel (`true` to enable)
+* `MACOS_SSH_PORT`: SSH port (default: 22)
+* `MACOS_SSH_KEY_PATH`: Path to private key (overrides password auth)
 
 ## Usage
 
-The server provides Remote MacOs functionality through MCP tools.
+Interact with test VMs through natural language in Claude Code:
 
-### Tools Specifications
+```text
+Open Self Service and verify it launches successfully.
+Navigate to Categories → Productivity, find Microsoft Office, and click Install.
+Monitor the installation and verify completion.
+```
 
-The server provides the following tools for remote macOS control:
+```text
+Explore Jamf Connect Settings. Try changing network configuration
+and document any unexpected behavior.
+```
 
-#### remote_macos_get_screen
+**Tips:**
 
-Connect to a remote macOS machine and get a screenshot of the remote desktop. Uses environment variables for connection details.
+* Specify VM targets: "On the macOS 14.5 VM..."
+* Define success criteria clearly
+* Request screenshots for verification
+* Ask Claude to summarize findings
 
-#### remote_macos_send_keys
+## Available Tools
 
-Send keyboard input to a remote macOS machine. Uses environment variables for connection details.
+Claude uses these tools automatically (all use configured environment variables and handle VNC/SSH authentication):
 
-#### remote_macos_mouse_move
+* **remote_macos_get_screen**: Captures screenshots for visual verification
+* **remote_macos_mouse_click/double_click**: Clicks UI elements with coordinate scaling
+* **remote_macos_mouse_move**: Moves cursor for hover states and positioning
+* **remote_macos_mouse_scroll**: Scrolls through lists and content
+* **remote_macos_mouse_drag_n_drop**: Drag-and-drop interactions
+* **remote_macos_send_keys**: Sends text, special keys, and key combinations
+* **remote_macos_open_application**: Launches/activates apps by name
 
-Move the mouse cursor to specified coordinates on a remote macOS machine, with automatic coordinate scaling. Uses environment variables for connection details.
+## Best Practices
 
-#### remote_macos_mouse_click
+**Environment:**
 
-Perform a mouse click at specified coordinates on a remote macOS machine, with automatic coordinate scaling. Uses environment variables for connection details.
+* Use dedicated test VMs with snapshots
+* Maintain consistent base images for reproducibility
+* Isolate test VMs on separate network segments
 
-#### remote_macos_mouse_double_click
+**Security:**
 
-Perform a mouse double-click at specified coordinates on a remote macOS machine, with automatic coordinate scaling. Uses environment variables for connection details.
+* Enable SSH tunneling for all connections
+* Use key-based SSH authentication
+* Store credentials securely; use synthetic test data only
 
-#### remote_macos_mouse_scroll
+**Testing Strategy:**
 
-Perform a mouse scroll at specified coordinates on a remote macOS machine, with automatic coordinate scaling. Uses environment variables for connection details.
+* Document observations and request screenshots for evidence
+* Specify VM/OS version for each test
+* Reset VMs to known-good states between test runs
 
-#### remote_macos_open_application
+## Development
 
-Opens/activates an application and returns its PID for further interactions.
+```bash
+# Clone and build
+git clone https://github.com/yourusername/mcp-remote-macos-use.git
+cd mcp-remote-macos-use
+docker build -t mcp-remote-macos-use .
+# or: podman build -t mcp-remote-macos-use .
 
-#### remote_macos_mouse_drag_n_drop
+# Make script executable
+chmod +x mcp-macos-use.sh
 
-Perform a mouse drag operation from start point and drop to end point on a remote macOS machine, with automatic coordinate scaling.
+# Test with Tart VM
+./mcp-macos-use.sh
 
-All tools use the environment variables configured during setup instead of requiring connection parameters.
+# Multi-platform publish
+docker buildx create --use
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t yourusername/mcp-remote-macos-use:latest --push .
+```
 
 ## Limitations
 
-- **Authentication Support**:
-  - Only Apple Authentication (protocol 30) is supported
+* Supports Apple Authentication (VNC protocol 30) only
+* Vision-based interaction slower than native automation
+* Each instance connects to one VM at a time
+* Best with consistent screen resolutions
 
-## Security Note
+## Security Notes
 
-<https://support.apple.com/guide/remote-desktop/encrypt-network-data-apdfe8e386b/mac>
-<https://cafbit.com/post/apple_remote_desktop_quirks/>
+Uses VNC protocol 30 (Diffie-Hellman key agreement). **Recommended:** Enable `VNC_ENCRYPTION=prefer_on` + SSH tunneling (`MACOS_SSH_USER`) + key-based SSH auth for defense-in-depth.
 
-We only support protocol 30, which uses the Diffie-Hellman key agreement protocol with a 512-bit prime. This protocol is used by macOS 11 to macOS 12 when communicating with OS X 10.11 or earlier clients.
+[Apple Remote Desktop Encryption](https://support.apple.com/guide/remote-desktop/encrypt-network-data-apdfe8e386b/mac)
 
-Here's the information converted to a markdown table:
+## About
 
-| macOS version running Remote Desktop | macOS client version | Authentication | Control and Observe | Copy items or install package | All other tasks | Protocol Version |
-|--------------------------------------|----------------------|----------------|---------------------|-------------------------------|----------------|----------------|
-| macOS 13 | macOS 13 | 2048-bit RSA host keys | 2048-bit RSA host keys | 2048-bit RSA host keys to authenticate, then 128-bit AES | 2048-bit RSA host keys | 36 |
-| macOS 13 | macOS 10.12 | Secure Remote Password (SRP) protocol for local only. Diffie-Hellman (DH) if bound to LDAP or macOS server is version 10.11 or earlier | SRP or DH,128-bit AES | SRP or DH to authenticate, then 128-bit AES | 2048-bit RSA host keys | 35 |
-| macOS 11 to macOS 12 | macOS 10.12 to macOS 13 | Secure Remote Password (SRP) protocol for local only, Diffie-Hellman if bound to LDAP | SRP or DH 1024-bit, 128-bit AES | 2048-bit RSA host keys macOS 13 to macOS 10.13 | 2048-bit RSA host keys macOS 10.13 or later |  33 |
-| macOS 11 to macOS 12 | OS X 10.11 or earlier | DH 1024-bit | DH 1024-bit, 128-bit AES | Diffie-Hellman Key agreement protocol with a 512-bit prime | Diffie-Hellman Key agreement protocol with a 512-bit prime |  30 |
+Jamf-optimized fork of [baryhuang/mcp-remote-macos-use](https://github.com/baryhuang/mcp-remote-macos-use) with:
 
-Always use secure, authenticated connections when accessing remote remote MacOs machines. This tool should only be used with servers you trust and have permission to access.
+* **Unified Credentials**: SSH and VNC use the same `MACOS_USERNAME` and `MACOS_PASSWORD` for simplified configuration
+* **SSH Tunnel Support**: VNC traffic routes through encrypted SSH when `USE_SSH_TUNNEL=true`
+* **Tart VM Integration**: `mcp-macos-use.sh` automatically detects Tart VM IPs via `tart ip` command
+* **Podman/Docker Support**: Works with either container runtime
+* **QE-Focused Documentation**: Best practices for E2E and exploratory testing workflows
 
 ## License
 
-See the LICENSE file for details.
+MIT License - Built on [Model Context Protocol](https://modelcontextprotocol.io/) by Anthropic

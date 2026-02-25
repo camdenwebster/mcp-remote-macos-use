@@ -28,6 +28,9 @@ from src.action_handlers import (
     handle_remote_macos_mouse_double_click,
     handle_remote_macos_mouse_move,
     handle_remote_macos_send_keys,
+    handle_remote_macos_send_ssh_command,
+    handle_remote_macos_send_file_scp,
+    handle_remote_macos_save_screenshot,
 )
 
 # Patch paths - the key insight is that we need to patch where the object is USED, not where it's defined
@@ -58,7 +61,7 @@ def mock_env_vars():
     """Mock environment variables for testing."""
     with patch.dict(os.environ, {
         'MACOS_HOST': TEST_HOST,
-        'MACOS_PORT': str(TEST_PORT),
+        'MACOS_VNC_PORT': str(TEST_PORT),
         'MACOS_USERNAME': TEST_USERNAME,
         'MACOS_PASSWORD': TEST_PASSWORD,
         'VNC_ENCRYPTION': 'prefer_on'
@@ -93,7 +96,10 @@ async def test_handle_remote_macos_get_screen_success(mock_capture_vnc_screen, m
         port=TEST_PORT,
         password=TEST_PASSWORD,
         username=TEST_USERNAME,
-        encryption='prefer_on'
+        encryption='prefer_on',
+        use_ssh_tunnel=False,
+        ssh_port=22,
+        ssh_key_path=None,
     )
 
 @pytest.mark.asyncio
@@ -377,4 +383,169 @@ async def test_handle_connection_error(mock_env_vars):
         assert "Connection failed" in result[0].text
         mock_instance.connect.assert_called_once()
         # Note: close() is not called when connection fails because we return early
-        # This is correct behavior based on the implementation 
+        # This is correct behavior based on the implementation
+
+
+# ── SSH command ──────────────────────────────────────────────────────────────
+
+PARAMIKO_SSH_CLIENT_PATH = 'src.action_handlers.paramiko.SSHClient'
+
+
+@pytest.mark.asyncio
+async def test_handle_remote_macos_send_ssh_command_success(mock_env_vars):
+    """Test successful SSH command execution."""
+    with patch(PARAMIKO_SSH_CLIENT_PATH) as MockSSHClass:
+        mock_ssh = MagicMock()
+        MockSSHClass.return_value = mock_ssh
+
+        mock_stdout = MagicMock()
+        mock_stdout.read.return_value = b'hello\n'
+        mock_stdout.channel.recv_exit_status.return_value = 0
+        mock_stderr = MagicMock()
+        mock_stderr.read.return_value = b''
+        mock_stdin = MagicMock()
+        mock_ssh.exec_command.return_value = (mock_stdin, mock_stdout, mock_stderr)
+
+        result = await handle_remote_macos_send_ssh_command({"command": "echo hello"})
+
+        assert len(result) == 1
+        assert result[0].type == "text"
+        assert "hello" in result[0].text
+        mock_ssh.connect.assert_called_once()
+        mock_ssh.close.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_handle_remote_macos_send_ssh_command_sudo_injects_password(mock_env_vars):
+    """Test that sudo commands have the password injected via stdin."""
+    with patch(PARAMIKO_SSH_CLIENT_PATH) as MockSSHClass:
+        mock_ssh = MagicMock()
+        MockSSHClass.return_value = mock_ssh
+
+        mock_stdout = MagicMock()
+        mock_stdout.read.return_value = b'root\n'
+        mock_stdout.channel.recv_exit_status.return_value = 0
+        mock_stderr = MagicMock()
+        mock_stderr.read.return_value = b''
+        mock_stdin = MagicMock()
+        mock_ssh.exec_command.return_value = (mock_stdin, mock_stdout, mock_stderr)
+
+        result = await handle_remote_macos_send_ssh_command({"command": "sudo whoami"})
+
+        assert len(result) == 1
+        assert result[0].type == "text"
+        # Password must be written to stdin for sudo
+        mock_stdin.write.assert_called_once()
+        mock_stdin.flush.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_handle_remote_macos_send_ssh_command_missing_command(mock_env_vars):
+    """Test that missing command raises ValueError."""
+    with pytest.raises(ValueError, match="command"):
+        await handle_remote_macos_send_ssh_command({})
+
+
+@pytest.mark.asyncio
+async def test_handle_remote_macos_send_ssh_command_connection_error(mock_env_vars):
+    """Test SSH connection failure returns error text."""
+    with patch(PARAMIKO_SSH_CLIENT_PATH) as MockSSHClass:
+        mock_ssh = MagicMock()
+        MockSSHClass.return_value = mock_ssh
+        mock_ssh.connect.side_effect = Exception("Connection refused")
+
+        result = await handle_remote_macos_send_ssh_command({"command": "ls"})
+
+        assert len(result) == 1
+        assert result[0].type == "text"
+        assert "Connection refused" in result[0].text
+
+
+# ── SCP file transfer ────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_handle_remote_macos_send_file_scp_success(mock_env_vars, tmp_path):
+    """Test successful SCP file upload to /tmp."""
+    local_file = tmp_path / "test.txt"
+    local_file.write_text("hello")
+
+    with patch(PARAMIKO_SSH_CLIENT_PATH) as MockSSHClass:
+        mock_ssh = MagicMock()
+        MockSSHClass.return_value = mock_ssh
+
+        mock_sftp = MagicMock()
+        mock_ssh.open_sftp.return_value = mock_sftp
+
+        result = await handle_remote_macos_send_file_scp({"local_path": str(local_file)})
+
+        assert len(result) == 1
+        assert result[0].type == "text"
+        assert "/tmp/" in result[0].text
+        mock_sftp.put.assert_called_once()
+        mock_sftp.close.assert_called_once()
+        mock_ssh.close.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_handle_remote_macos_send_file_scp_missing_path(mock_env_vars):
+    """Test that missing local_path raises ValueError."""
+    with pytest.raises(ValueError, match="local_path"):
+        await handle_remote_macos_send_file_scp({})
+
+
+@pytest.mark.asyncio
+async def test_handle_remote_macos_send_file_scp_connection_error(mock_env_vars, tmp_path):
+    """Test SCP connection failure returns error text."""
+    local_file = tmp_path / "test.txt"
+    local_file.write_text("hello")
+
+    with patch(PARAMIKO_SSH_CLIENT_PATH) as MockSSHClass:
+        mock_ssh = MagicMock()
+        MockSSHClass.return_value = mock_ssh
+        mock_ssh.connect.side_effect = Exception("SSH unavailable")
+
+        result = await handle_remote_macos_send_file_scp({"local_path": str(local_file)})
+
+        assert len(result) == 1
+        assert result[0].type == "text"
+        assert "SSH unavailable" in result[0].text
+
+
+# ── Save screenshot ──────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+@patch(CAPTURE_VNC_SCREEN_PATH, new_callable=AsyncMock)
+async def test_handle_remote_macos_save_screenshot_success(mock_capture, mock_env_vars, tmp_path):
+    """Test that screenshot PNG bytes are written to the given path."""
+    dest = tmp_path / "screen.png"
+    mock_capture.return_value = (True, b'\x89PNG...', None, (1366, 768))
+
+    result = await handle_remote_macos_save_screenshot({"file_path": str(dest)})
+
+    assert len(result) == 1
+    assert result[0].type == "text"
+    assert str(dest) in result[0].text
+    assert dest.exists()
+    assert dest.read_bytes() == b'\x89PNG...'
+
+
+@pytest.mark.asyncio
+@patch(CAPTURE_VNC_SCREEN_PATH, new_callable=AsyncMock)
+async def test_handle_remote_macos_save_screenshot_capture_failure(mock_capture, mock_env_vars, tmp_path):
+    """Test that a VNC capture failure returns an error message."""
+    dest = tmp_path / "screen.png"
+    mock_capture.return_value = (False, None, "VNC error", None)
+
+    result = await handle_remote_macos_save_screenshot({"file_path": str(dest)})
+
+    assert len(result) == 1
+    assert result[0].type == "text"
+    assert "VNC error" in result[0].text
+    assert not dest.exists()
+
+
+@pytest.mark.asyncio
+async def test_handle_remote_macos_save_screenshot_missing_path(mock_env_vars):
+    """Test that missing file_path raises ValueError."""
+    with pytest.raises(ValueError, match="file_path"):
+        await handle_remote_macos_save_screenshot({})

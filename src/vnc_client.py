@@ -5,6 +5,7 @@ import time
 import io
 from PIL import Image
 import pyDes
+import paramiko
 from typing import Optional, Tuple, List, Dict, Any
 
 # Configure logging
@@ -17,15 +18,19 @@ logger.setLevel(logging.DEBUG)
 
 
 async def capture_vnc_screen(host: str, port: int, password: str, username: Optional[str] = None,
-                             encryption: str = "prefer_on") -> Tuple[bool, Optional[bytes], Optional[str], Optional[Tuple[int, int]]]:
-    """Capture a screenshot from a remote MacOS machine at its native resolution.
+                             encryption: str = "prefer_on", use_ssh_tunnel: bool = False,
+                             ssh_port: int = 22, ssh_key_path: Optional[str] = None) -> Tuple[bool, Optional[bytes], Optional[str], Optional[Tuple[int, int]]]:
+    """Capture a screenshot from a remote MacOs machine.
 
     Args:
-        host: Remote MacOS machine hostname or IP address
-        port: Remote MacOS machine port
-        password: Remote MacOS machine password
-        username: Remote MacOS machine username (optional)
-        encryption: Encryption preference ("prefer_on", "always_on", "always_off")
+        host: remote MacOs machine hostname or IP address
+        port: remote MacOs machine port
+        password: VNC and SSH password (used for both if SSH tunnel is enabled)
+        username: VNC and SSH username (used for both if SSH tunnel is enabled)
+        encryption: Encryption preference (default: "prefer_on")
+        use_ssh_tunnel: Enable SSH tunnel for VNC traffic (default: False)
+        ssh_port: SSH server port on the remote host (default: 22)
+        ssh_key_path: Path to SSH private key file for key-based auth (optional, overrides password for SSH)
 
     Returns:
         Tuple containing:
@@ -40,7 +45,8 @@ async def capture_vnc_screen(host: str, port: int, password: str, username: Opti
     logger.debug(f"Connecting to remote MacOs machine at {host}:{port} with encryption: {encryption}")
 
     # Initialize VNC client
-    vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
+    vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption,
+                    use_ssh_tunnel=use_ssh_tunnel, ssh_port=ssh_port, ssh_key_path=ssh_key_path)
 
     try:
         # Connect to remote MacOs machine
@@ -105,6 +111,56 @@ def encrypt_MACOS_PASSWORD(password: str, challenge: bytes) -> bytes:
 
     return bytes(result)
 
+class SSHTunnel:
+    """Routes VNC traffic through an encrypted SSH channel using paramiko direct-tcpip."""
+
+    def __init__(self, host: str, username: str, password: str, ssh_port: int = 22,
+                 ssh_key_path: Optional[str] = None):
+        """Open an SSH tunnel and forward localhost:5900 on the remote host.
+
+        Args:
+            host: Remote host to SSH into
+            username: SSH username (same as VNC username)
+            password: SSH password (same as VNC password, used if no key provided)
+            ssh_port: SSH server port (default: 22)
+            ssh_key_path: Path to SSH private key file (overrides password auth)
+        """
+        logger.info(f"Opening SSH tunnel to {username}@{host}:{ssh_port}")
+        self.transport = paramiko.Transport((host, ssh_port))
+        try:
+            if ssh_key_path:
+                pkey = paramiko.RSAKey.from_private_key_file(ssh_key_path)
+                self.transport.connect(username=username, pkey=pkey)
+            else:
+                self.transport.connect(username=username, password=password)
+        except paramiko.AuthenticationException as e:
+            self.transport.close()
+            raise RuntimeError(f"SSH authentication failed for {username}@{host}: {e}") from e
+        except Exception as e:
+            self.transport.close()
+            raise RuntimeError(f"SSH connection to {host}:{ssh_port} failed: {e}") from e
+
+        self.channel = self.transport.open_channel(
+            'direct-tcpip', ('127.0.0.1', 5900), ('', 0)
+        )
+        logger.info("SSH tunnel established; VNC traffic will flow over SSH")
+
+    def get_channel(self) -> paramiko.Channel:
+        """Return the socket-compatible paramiko Channel."""
+        return self.channel
+
+    def close(self):
+        """Close the SSH channel and transport."""
+        try:
+            self.channel.close()
+        except Exception:
+            pass
+        try:
+            self.transport.close()
+        except Exception:
+            pass
+
+
 class PixelFormat:
     """VNC pixel format specification."""
 
@@ -149,22 +205,30 @@ class VNCClient:
     """VNC client implementation to connect to remote MacOs machines and capture screenshots."""
 
     def __init__(self, host: str, port: int = 5900, password: Optional[str] = None, username: Optional[str] = None,
-                 encryption: str = "prefer_on"):
+                 encryption: str = "prefer_on", use_ssh_tunnel: bool = False, ssh_port: int = 22,
+                 ssh_key_path: Optional[str] = None):
         """Initialize VNC client with connection parameters.
 
         Args:
             host: remote MacOs machine hostname or IP address
             port: remote MacOs machine port (default: 5900)
-            password: remote MacOs machine password (optional)
-            username: remote MacOs machine username (optional, only used with certain authentication methods)
+            password: VNC and SSH password (used for both if SSH tunnel is enabled)
+            username: VNC and SSH username (used for both if SSH tunnel is enabled)
             encryption: Encryption preference, one of "prefer_on", "prefer_off", "server" (default: "prefer_on")
+            use_ssh_tunnel: Enable SSH tunnel for VNC traffic (default: False)
+            ssh_port: SSH server port on the remote host (default: 22)
+            ssh_key_path: Path to SSH private key file for key-based auth (overrides password for SSH)
         """
         self.host = host
         self.port = port
         self.password = password
         self.username = username
         self.encryption = encryption
+        self.use_ssh_tunnel = use_ssh_tunnel
+        self.ssh_port = ssh_port
+        self.ssh_key_path = ssh_key_path
         self.socket = None
+        self._ssh_tunnel = None
         self.width = 0
         self.height = 0
         self.pixel_format = None
@@ -175,6 +239,8 @@ class VNCClient:
         logger.debug(f"Initialized VNC client for {host}:{port} with encryption={encryption}")
         if username:
             logger.debug(f"Username authentication enabled for: {username}")
+        if use_ssh_tunnel:
+            logger.debug(f"SSH tunnel enabled for: {username}@{host}:{ssh_port}")
 
     def connect(self) -> Tuple[bool, Optional[str]]:
         """Connect to the remote MacOs machine and perform the RFB handshake.
@@ -188,26 +254,39 @@ class VNCClient:
             logger.info(f"Attempting connection to remote MacOs machine at {self.host}:{self.port}")
             logger.debug(f"Connection parameters: encryption={self.encryption}, username={'set' if self.username else 'not set'}, password={'set' if self.password else 'not set'}")
 
-            # Create socket and connect
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket.settimeout(10)  # 10 second timeout
-            logger.debug(f"Created socket with 10 second timeout")
+            # Create socket — either a direct TCP connection or via SSH tunnel
+            if self.use_ssh_tunnel:
+                try:
+                    self._ssh_tunnel = SSHTunnel(
+                        self.host, self.username, self.password, self.ssh_port,
+                        self.ssh_key_path
+                    )
+                    self.socket = self._ssh_tunnel.get_channel()
+                    self.socket.settimeout(10)
+                    logger.info(f"Connected to {self.host}:{self.port} via SSH tunnel")
+                except RuntimeError as e:
+                    logger.error(str(e))
+                    return False, str(e)
+            else:
+                self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.socket.settimeout(10)  # 10 second timeout
+                logger.debug(f"Created socket with 10 second timeout")
 
-            try:
-                self.socket.connect((self.host, self.port))
-                logger.info(f"Successfully established TCP connection to {self.host}:{self.port}")
-            except ConnectionRefusedError:
-                error_msg = f"Connection refused by {self.host}:{self.port}. Ensure remote MacOs machine is running and port is correct."
-                logger.error(error_msg)
-                return False, error_msg
-            except socket.timeout:
-                error_msg = f"Connection timed out while trying to connect to {self.host}:{self.port}"
-                logger.error(error_msg)
-                return False, error_msg
-            except socket.gaierror as e:
-                error_msg = f"DNS resolution failed for host {self.host}: {str(e)}"
-                logger.error(error_msg)
-                return False, error_msg
+                try:
+                    self.socket.connect((self.host, self.port))
+                    logger.info(f"Successfully established TCP connection to {self.host}:{self.port}")
+                except ConnectionRefusedError:
+                    error_msg = f"Connection refused by {self.host}:{self.port}. Ensure remote MacOs machine is running and port is correct."
+                    logger.error(error_msg)
+                    return False, error_msg
+                except socket.timeout:
+                    error_msg = f"Connection timed out while trying to connect to {self.host}:{self.port}"
+                    logger.error(error_msg)
+                    return False, error_msg
+                except socket.gaierror as e:
+                    error_msg = f"DNS resolution failed for host {self.host}: {str(e)}"
+                    logger.error(error_msg)
+                    return False, error_msg
 
             # Receive RFB protocol version
             try:
@@ -785,9 +864,12 @@ class VNCClient:
         if self.socket:
             try:
                 self.socket.close()
-            except:
+            except Exception:
                 pass
             self.socket = None
+        if self._ssh_tunnel:
+            self._ssh_tunnel.close()
+            self._ssh_tunnel = None
 
     def send_key_event(self, key: int, down: bool) -> bool:
         """Send a key event to the remote MacOs machine.
