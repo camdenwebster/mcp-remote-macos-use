@@ -41,3 +41,4 @@ Thumbs.db
 
 # MCP Configuration (contains credentials)
 .mcp.json
+*.pkg
