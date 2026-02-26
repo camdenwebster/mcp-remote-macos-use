@@ -36,7 +36,6 @@ from action_handlers import (
     handle_remote_macos_open_application,
     handle_remote_macos_mouse_drag_n_drop,
     handle_remote_macos_send_ssh_command,
-    handle_remote_macos_send_file_scp,
     handle_remote_macos_save_screenshot,
 )
 
@@ -229,17 +228,6 @@ async def main():
                 },
             ),
             types.Tool(
-                name="remote_macos_send_file_scp",
-                description="Copy a local file to the /tmp directory on the remote macOS machine via SCP.",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "local_path": {"type": "string", "description": "Absolute path to the local file to upload"}
-                    },
-                    "required": ["local_path"]
-                },
-            ),
-            types.Tool(
                 name="remote_macos_save_screenshot",
                 description="Capture a screenshot of the remote macOS desktop and save it as a PNG to a local file path. Use paths under /mcp-output/ (e.g. /mcp-output/screenshot-1.png) — this directory is mounted to the host and is suitable for logging and diagnostic reports.",
                 inputSchema={
@@ -287,9 +275,6 @@ async def main():
 
             elif name == "remote_macos_send_ssh_command":
                 return await handle_remote_macos_send_ssh_command(arguments)
-
-            elif name == "remote_macos_send_file_scp":
-                return await handle_remote_macos_send_file_scp(arguments)
 
             elif name == "remote_macos_save_screenshot":
                 return await handle_remote_macos_save_screenshot(arguments)

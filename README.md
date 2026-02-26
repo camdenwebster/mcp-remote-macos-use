@@ -58,6 +58,22 @@ For local [Tart VMs](https://tart.run/) (macOS virtualization), use the included
 }
 ```
 
+**Running Tart VMs with Shared Directories:**
+
+For file transfer between host and VM (e.g., installing packages), launch your Tart VM with shared directory support:
+
+```bash
+tart run your-vm-name --net-host --vnc --dir="host-downloads:~/Downloads/"
+```
+
+Flags:
+
+* `--net-host`: Uses host networking for easy connectivity
+* `--vnc`: Enables VNC access for the MCP server
+* `--dir="host-downloads:~/Downloads/"`: Mounts your Downloads folder at `/Volumes/My Shared Files/host-downloads/` in the VM
+
+This allows you to place files in `~/Downloads/` on your host and access them from the VM without needing SCP.
+
 **First-Run Setup:**
 
 The script automatically handles:
@@ -87,7 +103,7 @@ For VMs with known IP addresses:
 {
   "mcpServers": {
     "macos-test-vm": {
-      "command": "docker",
+      "command": "podman",
       "args": [
         "run",
         "-i",
@@ -102,12 +118,14 @@ For VMs with known IP addresses:
         "-e",
         "VNC_ENCRYPTION=prefer_on",
         "--rm",
-        "buryhuang/mcp-remote-macos-use:latest"
+        "mcp-remote-macos-use:latest"
       ]
     }
   }
 }
 ```
+
+**Note:** Replace `podman` with `docker` in the command field if you prefer Docker.
 
 ### SSH Tunnel Configuration (Recommended)
 
@@ -117,7 +135,7 @@ For enhanced security or when VMs are behind firewalls, route VNC traffic throug
 {
   "mcpServers": {
     "macos-test-vm-ssh": {
-      "command": "docker",
+      "command": "podman",
       "args": [
         "run",
         "-i",
@@ -136,7 +154,7 @@ For enhanced security or when VMs are behind firewalls, route VNC traffic throug
         "-e",
         "MACOS_SSH_KEY_PATH=/root/.ssh/id_rsa",
         "--rm",
-        "buryhuang/mcp-remote-macos-use:latest"
+        "mcp-remote-macos-use:latest"
       ]
     }
   }
@@ -217,8 +235,8 @@ Claude uses these tools automatically (all use configured environment variables 
 # Clone and build
 git clone https://github.com/yourusername/mcp-remote-macos-use.git
 cd mcp-remote-macos-use
-docker build -t mcp-remote-macos-use .
-# or: podman build -t mcp-remote-macos-use .
+podman build -t mcp-remote-macos-use .
+# or: docker build -t mcp-remote-macos-use .
 
 # Make script executable
 chmod +x mcp-macos-use.sh
@@ -226,7 +244,7 @@ chmod +x mcp-macos-use.sh
 # Test with Tart VM
 ./mcp-macos-use.sh
 
-# Multi-platform publish
+# Multi-platform publish (using Docker buildx)
 docker buildx create --use
 docker buildx build --platform linux/amd64,linux/arm64 \
   -t yourusername/mcp-remote-macos-use:latest --push .

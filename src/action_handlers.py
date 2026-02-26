@@ -747,44 +747,6 @@ async def handle_remote_macos_send_ssh_command(arguments: dict[str, Any]) -> lis
         client.close()
 
 
-async def handle_remote_macos_send_file_scp(arguments: dict[str, Any]) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
-    """Copy a local file to the /tmp directory on the remote macOS machine via SCP."""
-    local_path = arguments.get("local_path")
-    if not local_path:
-        raise ValueError("local_path is required")
-
-    remote_filename = os.path.basename(local_path)
-    remote_path = f"/tmp/{remote_filename}"
-
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    try:
-        connect_kwargs: dict[str, Any] = dict(
-            hostname=MACOS_HOST,
-            port=MACOS_SSH_PORT,
-            username=MACOS_USERNAME,
-            password=MACOS_PASSWORD,
-        )
-        if MACOS_SSH_KEY_PATH:
-            connect_kwargs["key_filename"] = MACOS_SSH_KEY_PATH
-        client.connect(**connect_kwargs)
-
-        sftp = client.open_sftp()
-        try:
-            sftp.put(local_path, remote_path)
-        finally:
-            sftp.close()
-
-        return [types.TextContent(
-            type="text",
-            text=f"File uploaded: {local_path} -> {MACOS_HOST}:{remote_path}",
-        )]
-    except Exception as exc:
-        return [types.TextContent(type="text", text=f"SCP error: {exc}")]
-    finally:
-        client.close()
-
-
 async def handle_remote_macos_save_screenshot(arguments: dict[str, Any]) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
     """Capture the remote desktop and save the PNG to a local file path."""
     file_path = arguments.get("file_path")

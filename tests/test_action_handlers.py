@@ -29,7 +29,6 @@ from src.action_handlers import (
     handle_remote_macos_mouse_move,
     handle_remote_macos_send_keys,
     handle_remote_macos_send_ssh_command,
-    handle_remote_macos_send_file_scp,
     handle_remote_macos_save_screenshot,
 )
 
@@ -460,55 +459,6 @@ async def test_handle_remote_macos_send_ssh_command_connection_error(mock_env_va
         assert result[0].type == "text"
         assert "Connection refused" in result[0].text
 
-
-# ── SCP file transfer ────────────────────────────────────────────────────────
-
-@pytest.mark.asyncio
-async def test_handle_remote_macos_send_file_scp_success(mock_env_vars, tmp_path):
-    """Test successful SCP file upload to /tmp."""
-    local_file = tmp_path / "test.txt"
-    local_file.write_text("hello")
-
-    with patch(PARAMIKO_SSH_CLIENT_PATH) as MockSSHClass:
-        mock_ssh = MagicMock()
-        MockSSHClass.return_value = mock_ssh
-
-        mock_sftp = MagicMock()
-        mock_ssh.open_sftp.return_value = mock_sftp
-
-        result = await handle_remote_macos_send_file_scp({"local_path": str(local_file)})
-
-        assert len(result) == 1
-        assert result[0].type == "text"
-        assert "/tmp/" in result[0].text
-        mock_sftp.put.assert_called_once()
-        mock_sftp.close.assert_called_once()
-        mock_ssh.close.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_handle_remote_macos_send_file_scp_missing_path(mock_env_vars):
-    """Test that missing local_path raises ValueError."""
-    with pytest.raises(ValueError, match="local_path"):
-        await handle_remote_macos_send_file_scp({})
-
-
-@pytest.mark.asyncio
-async def test_handle_remote_macos_send_file_scp_connection_error(mock_env_vars, tmp_path):
-    """Test SCP connection failure returns error text."""
-    local_file = tmp_path / "test.txt"
-    local_file.write_text("hello")
-
-    with patch(PARAMIKO_SSH_CLIENT_PATH) as MockSSHClass:
-        mock_ssh = MagicMock()
-        MockSSHClass.return_value = mock_ssh
-        mock_ssh.connect.side_effect = Exception("SSH unavailable")
-
-        result = await handle_remote_macos_send_file_scp({"local_path": str(local_file)})
-
-        assert len(result) == 1
-        assert result[0].type == "text"
-        assert "SSH unavailable" in result[0].text
 
 
 # ── Save screenshot ──────────────────────────────────────────────────────────

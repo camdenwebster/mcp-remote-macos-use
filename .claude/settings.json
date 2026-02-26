@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/camden.webster/Desktop/**)",
+      "mcp__mcp-remote-macos-use__remote_macos_send_ssh_command",
+      "mcp__mcp-remote-macos-use__remote_macos_get_screen",
+      "mcp__mcp-remote-macos-use__remote_macos_mouse_click",
+      "Bash(uv run pytest tests/test_action_handlers.py -v)"
+    ],
+    "additionalDirectories": [
+      "/Users/camden.webster/Downloads"
+    ]
+  }
+}
